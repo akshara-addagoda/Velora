@@ -2,6 +2,10 @@
 
 A local marketplace for **Mahabubabad, Telangana**: book local professionals, order produce, and request vehicle rentals. This is a working development MVP with a React client, FastAPI API and persistent SQL database. It is not ready for public commercial launch without the work described below.
 
+## Public demo preparation
+
+Vercel frontend and Render backend configuration is prepared in `frontend/vercel.json` and `render.yaml`. **Nothing has been deployed or pushed.** Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the approval checklist, hosted database setup, exact environment values and publication steps. Keep the local database and its credentials private; use a separate hosted demo database.
+
 ## Start the configured application
 
 The current checkout is configured for your existing **PostgreSQL 17 database `Velora`** on `127.0.0.1:5432`. The capital V matters. The private connection string is in the Git-ignored root `.env`; never commit that file or replace it with the example.
@@ -57,7 +61,7 @@ Prerequisites: Python 3.13 or later, Node.js 22 LTS with npm. PostgreSQL 16+ is 
 ```powershell
 cd 'C:\Users\Akshara Addagoda\OneDrive\Desktop\Velora'
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r backend\requirements-dev.txt
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 cd backend
 ..\.venv\Scripts\python.exe -m app.setup_postgres
@@ -69,7 +73,7 @@ cd backend
 If `venv` reports an `ensurepip` error but creates `.venv\Scripts\python.exe`, run this from the project root using your installed Python pip:
 
 ```powershell
-python -m pip --python .venv/Scripts/python.exe install -r backend/requirements.txt
+python -m pip --python .venv/Scripts/python.exe install -r backend/requirements-dev.txt
 ```
 
 In a **second terminal**:
@@ -139,7 +143,7 @@ The first migration installs `btree_gist` for a database-level overlap exclusion
 | `SESSION_HOURS` | Server session lifetime | `24` |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Optional seed-only admin bootstrap | empty |
 
-`frontend/.env.example` documents the optional `VITE_API_TARGET` proxy override for separate-terminal startup. No database secrets belong in frontend environment files. The frontend continues to call same-origin `/api` routes; only Vite's server-side proxy needs the API target. The one-command launcher supplies it automatically.
+`frontend/.env.example` documents two different settings: `VITE_API_TARGET` is only the local Vite proxy target; `VITE_API_BASE_URL` is the public Render API origin embedded in a Vercel build. Leave the latter empty locally to retain the existing `/api` proxy. No database secrets belong in frontend environment files. Rebuild the frontend after changing a public build variable.
 
 Money uses SQL Decimal/Numeric and is calculated on the backend. ₹25 is the initial flat produce delivery fee; pickup has no fee. There are no discounts in this MVP. Rental durations round up to the next full hourly/daily unit. Vehicle deposits are separate from commission and provider earnings. Timestamps are UTC in storage; displays use Asia/Kolkata. Date/time entry is labelled as the browser's local time.
 
@@ -189,7 +193,7 @@ This opt-in check creates clearly labelled synthetic customers, a business, list
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for tradeoffs and [docs/STATUS.md](docs/STATUS.md) for verified scope. Before launch:
 
-- Use PostgreSQL, separate deployment secrets, HTTPS, same-origin API routing and backups with tested restore.
+- Use hosted PostgreSQL, separate deployment secrets, HTTPS, exact CORS origins and backups with tested restore.
 - Keep the frozen migration immutable; generate new Alembic revisions for schema changes and add PostgreSQL concurrency CI.
 - Add account email verification, password recovery, stronger session/browser protections and distributed rate limiting. Current auth throttling is process-local and is for development.
 - Add object storage, image decoding/re-encoding, malware scanning, quotas and lifecycle cleanup. Local uploads currently validate signatures and size only.

@@ -3,14 +3,13 @@ import math
 import secrets
 from datetime import timedelta
 from decimal import ROUND_UP, Decimal, InvalidOperation
-from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import delete, func, select, update
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from .database import get_db, now, settings
 from .models import (
@@ -60,14 +59,15 @@ from .security import (
 app = FastAPI(title="Velora Marketplace API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_origin],
+    allow_origins=settings.cors_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
-UPLOADS = Path(__file__).parents[1] / "uploads"
-UPLOADS.mkdir(exist_ok=True)
-app.mount("/api/uploads", StaticFiles(directory=UPLOADS), name="uploads")
+UPLOADS = settings.uploads_path
+if settings.image_uploads_enabled:
+    UPLOADS.mkdir(parents=True, exist_ok=True)
+    app.mount("/api/uploads", StaticFiles(directory=UPLOADS), name="uploads")
 
 
 @app.exception_handler(IntegrityError)
@@ -78,7 +78,7 @@ async def integrity_error(request, exc):
     )
 
 
-@app.exception_handler(OperationalError)
+@app.exception_handler(SQLAlchemyError)
 async def database_unavailable(request, exc):
     return JSONResponse(
         status_code=503,
@@ -212,10 +212,17 @@ def transaction_json(db, transaction):
 @app.get("/api/health")
 def health(db=Depends(get_db)):
     db.execute(select(1))
+    # A reachable database without the schema is not ready to serve the marketplace.
+    db.execute(select(Category.id).limit(1))
     return {
         "status": "ok",
         "payments": "pay directly to participating provider; online gateway not configured",
     }
+
+
+@app.get("/api/config")
+def public_config():
+    return {"uploads_enabled": settings.image_uploads_enabled, "online_payments_enabled": False}
 
 
 @app.post("/api/auth/register", status_code=201, dependencies=[Depends(rate_limit)])
@@ -491,6 +498,10 @@ def delete_availability(identifier: int, user=Depends(current_user), db=Depends(
 
 @app.post("/api/uploads", status_code=201)
 async def upload_image(file: UploadFile = File(...), user=Depends(current_user)):
+    if not settings.image_uploads_enabled:
+        raise HTTPException(
+            503, "Image uploads are unavailable in this demo. Use an HTTPS image URL instead."
+        )
     content = await file.read(5 * 1024 * 1024 + 1)
     extension = (
         ".png"

@@ -39,3 +39,11 @@ The browser test leaves one synthetic QA business and one hidden service listing
 - That opt-in smoke check leaves synthetic records in the development database and hides its three listings afterward. It does not reset any data or process payments.
 
 The earlier SQLite data file is preserved. New activity now uses PostgreSQL. Application servers must remain running for the browser URL to work; opening the browser alone does not start them.
+
+## Public-demo deployment preparation — 27 October 2026
+
+Prepared `frontend/vercel.json`, root `render.yaml`, environment-based public API/media URLs, exact production CORS origins, hosted PostgreSQL driver normalization/TLS, safe production settings and an explicit hosted database management CLI. Production uploads default to disabled until persistent storage is configured; HTTPS image URLs remain available. Production builds label the marketplace as a demo.
+
+Verification: 32 backend tests and 18 frontend tests passed, along with normal/configured-production builds, TypeScript, lint/formatting, manifest parsing, dependency checks, offline PostgreSQL SQL rendering and read-only local migration/schema checks. Known local credentials were not found in publishable files or Git history. No local `.env` or database records were changed by this preparation.
+
+**Not deployed:** no hosted database was created or modified, no production migrations/seeds were run, no Git commit/push was made, and no live public URL was verified. Follow [DEPLOYMENT.md](DEPLOYMENT.md) for approval gates, exact provider settings, plan limitations and the publication checklist.

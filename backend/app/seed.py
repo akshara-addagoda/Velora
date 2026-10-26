@@ -37,15 +37,16 @@ def seed():
                 if not db.scalar(select(Category).where(Category.name == name)):
                     db.add(Category(name=name, kind=kind))
         db.flush()
-        if settings.admin_email and settings.admin_password:
-            if len(settings.admin_password) < 12:
+        admin_password = settings.admin_password.get_secret_value()
+        if settings.admin_email and admin_password:
+            if len(admin_password) < 12:
                 raise ValueError("Use at least 12 characters for ADMIN_PASSWORD")
             if not db.scalar(select(User).where(User.email == settings.admin_email.lower())):
                 db.add(
                     User(
                         email=settings.admin_email.lower(),
                         name="Velora Administrator",
-                        password_hash=passwords.hash(settings.admin_password),
+                        password_hash=passwords.hash(admin_password),
                         roles="customer,admin",
                     )
                 )

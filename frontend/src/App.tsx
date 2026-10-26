@@ -36,6 +36,7 @@ import {
 import {
   api,
   dateTime,
+  mediaUrl,
   post,
   put,
   rupees,
@@ -324,7 +325,10 @@ export default function App() {
               Made for Mahabubabad. Built around you.
             </p>
             <span className="small">
-              Local development marketplace · Online payments unavailable
+              {import.meta.env.PROD
+                ? 'Demo marketplace · Sample listings'
+                : 'Local development marketplace'}{' '}
+              · Online payments unavailable
             </span>
           </div>
           <div>
@@ -694,7 +698,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
       <div className="listing-image">
         <Link to={'/listing/' + listing.id}>
           <img
-            src={listing.image || '/placeholder.svg'}
+            src={mediaUrl(listing.image || '/placeholder.svg')}
             alt={listing.title}
             loading="lazy"
             onError={(e) => {
@@ -1030,7 +1034,7 @@ function ListingPage() {
         <div>
           <img
             className="detail-photo"
-            src={listing.image || '/placeholder.svg'}
+            src={mediaUrl(listing.image || '/placeholder.svg')}
             alt={listing.title}
             onError={(e) => {
               e.currentTarget.src = '/placeholder.svg'

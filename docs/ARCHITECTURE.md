@@ -37,3 +37,9 @@ The initial Alembic migration contains frozen table and index operations and Pos
 The API is grouped into `/auth`, `/business`, `/listings`, `/bookings`, `/cart`, `/transactions` and `/admin`. Extract the shared transaction domain and API routers as the team grows. Introduce a location table when onboarding additional towns: businesses already carry town and comma-separated exact locality coverage. Public locality filtering is a discovery match; checkout/booking checks exact coverage. No map dependency exists.
 
 The UI uses shared cards, forms, notices, a reusable API client and TanStack Query cache invalidation. Navigation routes compose marketplace, account and management screens. Image placeholders are local. Sample photos and Google Fonts require internet and are optional to core workflows. No real sample ratings, completed bookings or verification claims are invented.
+
+## Hosted demo configuration
+
+`app/config.py` validates environment settings. Local development retains its database and `/api` proxy. In production the API reads provider environment variables instead of local dotenv files, requires hosted PostgreSQL with TLS, normalizes provider URLs to psycopg, and accepts only explicitly configured public HTTPS frontend origins. Password-bearing settings use redacted secret types. Production startup never migrates or seeds data.
+
+The Vercel build uses `VITE_API_BASE_URL` for both API requests and relative uploaded-image paths; the value is a public origin, never a database connection string. Vercel SPA routing is defined in `frontend/vercel.json`. The Render Blueprint is a single-worker demo API with auto-deploy off. Production uploads are disabled unless explicitly enabled with a persistent storage directory, and `/api/config` reports feature availability to the editor. Publishing requires the separate, approval-controlled steps in `docs/DEPLOYMENT.md`.

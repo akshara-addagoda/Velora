@@ -8,5 +8,3 @@ pydantic-settings>=2.8,<3
 python-dotenv>=1.2,<2
 pwdlib[argon2]>=0.2,<1
 python-multipart>=0.0.20,<1
-pytest>=8,<10
-httpx>=0.28,<1

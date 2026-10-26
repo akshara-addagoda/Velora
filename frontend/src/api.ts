@@ -1,3 +1,8 @@
+import { apiEndpoint, apiMediaUrl, normalizeApiOrigin } from './api-url'
+
+const API_ORIGIN = normalizeApiOrigin(import.meta.env.VITE_API_BASE_URL || '', import.meta.env.PROD)
+export const mediaUrl = (path: string) => apiMediaUrl(path, API_ORIGIN)
+
 export type User = { id: number; name: string; email: string; roles: string[] }
 export type Business = {
   id: number
@@ -62,7 +67,7 @@ export type CartItem = { listing: Listing; quantity: number }
 
 export async function api<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   const token = sessionStorage.getItem('velora-token')
-  const response = await fetch('/api' + path, {
+  const response = await fetch(apiEndpoint(path, API_ORIGIN), {
     ...options,
     headers: {
       ...(!(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),

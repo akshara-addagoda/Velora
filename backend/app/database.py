@@ -1,34 +1,19 @@
+import os
 from datetime import datetime, timezone
-from decimal import Decimal
-from pathlib import Path
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
+from .config import Settings
 
-class Settings(BaseSettings):
-    database_url: str = "sqlite:///./velora.db"
-    frontend_origin: str = "http://127.0.0.1:5173"
-    commission_percent: Decimal = Field(default=Decimal("5"), ge=0, le=100)
-    session_hours: int = Field(default=24, ge=1, le=168)
-    admin_email: str = ""
-    admin_password: str = ""
-    model_config = SettingsConfigDict(
-        env_file=(str(Path(__file__).parents[2] / ".env"), ".env"), extra="ignore"
-    )
-
-
-settings = Settings()
+settings = Settings(_env_file=None) if os.environ.get("APP_ENV") == "production" else Settings()
 engine = create_engine(
-    settings.database_url,
-    connect_args={"check_same_thread": False}
-    if settings.database_url.startswith("sqlite")
-    else {"connect_timeout": 5},
+    settings.sqlalchemy_url,
+    connect_args=settings.connection_args,
     pool_pre_ping=True,
+    pool_recycle=300,
 )
-if settings.database_url.startswith("sqlite"):
+if settings.sqlalchemy_url.get_backend_name() == "sqlite":
 
     @event.listens_for(engine, "connect")
     def sqlite_settings(connection, _):

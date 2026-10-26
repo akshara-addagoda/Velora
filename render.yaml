@@ -1,0 +1,27 @@
+# Preparation only. Applying this Blueprint creates a public service; obtain approval first.
+# Database creation and migrations are intentionally separate, explicit steps.
+services:
+  - type: web
+    name: velora-api-demo
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /api/health
+    autoDeployTrigger: "off"
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_ORIGINS
+        sync: false
+      - key: DATABASE_SSLMODE
+        value: require
+      - key: UPLOADS_ENABLED
+        value: "false"
+      - key: SESSION_HOURS
+        value: "24"
+      - key: COMMISSION_PERCENT
+        value: "5"

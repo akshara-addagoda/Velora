@@ -18,6 +18,7 @@ import {
 import {
   api,
   dateTime,
+  mediaUrl,
   post,
   put,
   rupees,
@@ -307,7 +308,7 @@ export function CartPage() {
             </p>
             {cart.map(({ listing, quantity }) => (
               <div className="cart-row" key={listing.id}>
-                <img src={listing.image || '/placeholder.svg'} alt={listing.title} />
+                <img src={mediaUrl(listing.image || '/placeholder.svg')} alt={listing.title} />
                 <div>
                   <Link to={'/listing/' + listing.id}>
                     <h3>{listing.title}</h3>
@@ -900,7 +901,7 @@ export function BusinessPage() {
               <div className="manage-listings">
                 {listings?.map((listing) => (
                   <div className="manage-row" key={listing.id}>
-                    <img src={listing.image || '/placeholder.svg'} alt="" />
+                    <img src={mediaUrl(listing.image || '/placeholder.svg')} alt="" />
                     <div>
                       <h3>{listing.title}</h3>
                       <span>
@@ -937,6 +938,10 @@ export function BusinessPage() {
 
 function ListingEditor({ listing, onClose }: { listing: Listing | null; onClose: () => void }) {
   const { user, toast, refresh } = useSession()
+  const { data: capabilities } = useQuery({
+    queryKey: ['public-config'],
+    queryFn: () => api<{ uploads_enabled: boolean }>('/config'),
+  })
   const kinds = [
     ['service', 'provider'],
     ['vegetable', 'seller'],
@@ -1066,6 +1071,7 @@ function ListingEditor({ listing, onClose }: { listing: Listing | null; onClose:
         <Field label="Or upload PNG, JPEG or WebP (up to 5 MB)">
           <input
             type="file"
+            disabled={!capabilities?.uploads_enabled || busy}
             accept="image/png,image/jpeg,image/webp"
             onChange={async (e) => {
               if (!e.target.files?.[0]) return
@@ -1083,6 +1089,11 @@ function ListingEditor({ listing, onClose }: { listing: Listing | null; onClose:
             }}
           />
         </Field>
+        {!capabilities?.uploads_enabled && (
+          <p className="small">
+            Image uploads are not enabled for this deployment. Use an HTTPS image URL above.
+          </p>
+        )}
         <div className="form-row">
           <Field label="Price (₹)">
             <input
