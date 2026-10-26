@@ -2,6 +2,29 @@
 
 A local marketplace for **Mahabubabad, Telangana**: book local professionals, order produce, and request vehicle rentals. This is a working development MVP with a React client, FastAPI API and persistent SQL database. It is not ready for public commercial launch without the work described below.
 
+## Start the configured application
+
+The current checkout is configured for your existing **PostgreSQL 17 database `Velora`** on `127.0.0.1:5432`. The capital V matters. The private connection string is in the Git-ignored root `.env`; never commit that file or replace it with the example.
+
+In PowerShell or the VS Code terminal:
+
+```powershell
+cd 'C:\Users\Akshara Addagoda\OneDrive\Desktop\Velora'
+npm.cmd run dev
+```
+
+Open [Velora](http://127.0.0.1:5173/). This command starts both the existing Vite frontend and FastAPI backend, verifies database health and the frontend API proxy, and prints the URLs when ready. **Keep the terminal open.** Ctrl+C stops both application servers; PostgreSQL remains running as its own Windows service. Restart the same command after closing the terminal or restarting your laptop. Backend code changes require a restart; Vite updates frontend edits automatically.
+
+If a port is already occupied, the launcher stops with a clear message and never terminates the other application. After checking the process, you can choose different ports:
+
+```powershell
+npm.cmd run dev -- --frontend-port=5174 --backend-port=8001
+```
+
+The launcher adjusts the frontend proxy and backend CORS origin together for those ports. Don't launch a second copy while Velora is already running. The regular two-terminal commands below remain supported.
+
+The original `ERR_CONNECTION_REFUSED` occurred because no frontend/API server was listening. Opening the browser alone does not start the application. A separate PostgreSQL connection issue came from using `velora` instead of the actual existing database name `Velora`.
+
 ## What works
 
 - Registration with multiple business roles, Argon2 password hashing, expiring server-side sessions and sign-out invalidation. Public registration cannot assign administrators.
@@ -35,8 +58,9 @@ Prerequisites: Python 3.13 or later, Node.js 22 LTS with npm. PostgreSQL 16+ is 
 cd 'C:\Users\Akshara Addagoda\OneDrive\Desktop\Velora'
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 cd backend
+..\.venv\Scripts\python.exe -m app.setup_postgres
 ..\.venv\Scripts\python.exe -m alembic upgrade head
 ..\.venv\Scripts\python.exe -m app.seed
 ..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
@@ -56,9 +80,9 @@ npm.cmd ci
 npm.cmd run dev
 ```
 
-Open [Velora](http://localhost:5173). The API runs at [localhost:8000](http://localhost:8000/api/health); interactive documentation is at [localhost:8000/docs](http://localhost:8000/docs). Vite proxies `/api` to the API server. Stop each server with Ctrl+C. Repeat only the two server commands for subsequent runs.
+Open [Velora](http://127.0.0.1:5173). The API runs at [127.0.0.1:8000](http://127.0.0.1:8000/api/health); interactive documentation is at [127.0.0.1:8000/docs](http://127.0.0.1:8000/docs). Vite proxies `/api` to the API server. Stop each server with Ctrl+C. Repeat only the two server commands for subsequent runs, or use the root `npm.cmd run dev` command to run both together.
 
-The current setup already has a migrated SQLite database and sample listings. Do not overwrite an existing `.env`; edit it as needed. The seed is idempotent and does not replace existing listings.
+The current setup has a migrated PostgreSQL database and sample listings. The older SQLite file is preserved and is no longer used by the configured app. Do not overwrite an existing `.env`; edit it as needed. The seed is idempotent and does not replace existing listings.
 
 ## Create test accounts
 
@@ -80,17 +104,20 @@ Remove the administrator bootstrap password from `.env` after creation. The seed
 
 ## PostgreSQL
 
-Create a database and user using an installed PostgreSQL server (replace the password):
+Your existing local database is `Velora`, owned/accessed through `postgres`. It was inspected before migration and had no public tables. No database was dropped or renamed, and the separate Fleet Masters database was not modified.
 
-```sql
-CREATE USER velora WITH PASSWORD 'REPLACE_WITH_A_STRONG_PASSWORD';
-CREATE DATABASE velora OWNER velora;
+To validate or update local credentials, run the secure setup helper from `backend`:
+
+```powershell
+..\.venv\Scripts\python.exe -m app.setup_postgres
 ```
 
-Set root `.env`:
+The password prompt is hidden. The helper discovers the exact existing Velora database name, tests a connection, lists its table names and migration revision, then updates only database and frontend-origin settings in the ignored root `.env`. It does not create, drop or reset databases or tables. SQLAlchemy encodes special password characters correctly. It never prints the password or full connection URL. Other database contents are not inspected.
+
+`.env.example` uses a placeholder only:
 
 ```dotenv
-DATABASE_URL=postgresql+psycopg://velora:YOUR_URL_ENCODED_PASSWORD@localhost:5432/velora
+DATABASE_URL=postgresql+psycopg://postgres:YOUR_URL_ENCODED_PASSWORD@127.0.0.1:5432/Velora
 ```
 
 Then, from `backend`:
@@ -106,11 +133,13 @@ The first migration installs `btree_gist` for a database-level overlap exclusion
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
-| `DATABASE_URL` | SQLAlchemy connection URL | SQLite `./velora.db` |
-| `FRONTEND_ORIGIN` | Allowed CORS origin | `http://localhost:5173` |
+| `DATABASE_URL` | SQLAlchemy connection URL | Configured: PostgreSQL `Velora`; code-only fallback: SQLite |
+| `FRONTEND_ORIGIN` | Allowed CORS origin | `http://127.0.0.1:5173` |
 | `COMMISSION_PERCENT` | Commission on subtotal, excluding deposits/delivery | `5` |
 | `SESSION_HOURS` | Server session lifetime | `24` |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Optional seed-only admin bootstrap | empty |
+
+`frontend/.env.example` documents the optional `VITE_API_TARGET` proxy override for separate-terminal startup. No database secrets belong in frontend environment files. The frontend continues to call same-origin `/api` routes; only Vite's server-side proxy needs the API target. The one-command launcher supplies it automatically.
 
 Money uses SQL Decimal/Numeric and is calculated on the backend. ₹25 is the initial flat produce delivery fee; pickup has no fee. There are no discounts in this MVP. Rental durations round up to the next full hourly/daily unit. Vehicle deposits are separate from commission and provider earnings. Timestamps are UTC in storage; displays use Asia/Kolkata. Date/time entry is labelled as the browser's local time.
 
@@ -132,9 +161,20 @@ npm.cmd run lint
 
 The API tests use isolated temporary SQLite databases. They never reset your development database. They cover auth, privilege escalation, ownership, service transitions, stock shortage/stale carts, cancellation restoration, mixed shops, reviews, rental overlaps, coverage, availability, urgent scheduling, upload rejection and moderation. Concurrent checkout and rental acceptance tests use separate database connections. PostgreSQL-specific and multi-process concurrency checks require a separate PostgreSQL test environment; SQLite results do not establish those checks.
 
+With the local app running, verify real PostgreSQL workflows through the frontend proxy from `backend`:
+
+```powershell
+..\.venv\Scripts\python.exe -m app.smoke_check http://127.0.0.1:5173
+```
+
+This opt-in check creates clearly labelled synthetic customers, a business, listings and transactions in the configured development database, then hides its listings and revokes its sessions. It never deletes records, resets a database, or makes a payment. It validates service completion/reviews, produce inventory and cancellation, rental estimates and overlapping acceptance, private-record access and logout. It was run successfully against the local PostgreSQL 17 instance. Do not use it against a production database.
+
 ## Common issues
 
 - **Failed to fetch / API connection refused:** start the backend before the frontend. Check `/api/health` and terminal output.
+- **This site can't be reached / ERR_CONNECTION_REFUSED:** run `npm.cmd run dev` from the project root and leave its terminal open. The browser and PostgreSQL service do not start Vite/FastAPI automatically.
+- **Database does not exist:** the local name is `Velora` with capital V. Run the setup helper instead of recreating or renaming databases.
+- **Database temporarily unavailable (503):** check the PostgreSQL Windows service and credentials, then retry. The API intentionally hides driver errors and connection details.
 - **Empty catalogue:** run migration and seed from `backend`, and confirm the configured database URL.
 - **Stock conflict:** refresh your bag and reduce quantities. Cart quantities do not reserve stock; checkout does.
 - **Booking overlap:** choose another time or have the provider reject/cancel the conflicting reservation.

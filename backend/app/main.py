@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import delete, func, select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from .database import get_db, now, settings
 from .models import (
@@ -75,6 +75,14 @@ async def integrity_error(request, exc):
     return JSONResponse(
         status_code=409,
         content={"detail": "This record conflicts with an existing record. Refresh and try again."},
+    )
+
+
+@app.exception_handler(OperationalError)
+async def database_unavailable(request, exc):
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "The database is temporarily unavailable. Please try again shortly."},
     )
 
 

@@ -10,7 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 class Settings(BaseSettings):
     database_url: str = "sqlite:///./velora.db"
-    frontend_origin: str = "http://localhost:5173"
+    frontend_origin: str = "http://127.0.0.1:5173"
     commission_percent: Decimal = Field(default=Decimal("5"), ge=0, le=100)
     session_hours: int = Field(default=24, ge=1, le=168)
     admin_email: str = ""
@@ -23,7 +23,9 @@ class Settings(BaseSettings):
 settings = Settings()
 engine = create_engine(
     settings.database_url,
-    connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {},
+    connect_args={"check_same_thread": False}
+    if settings.database_url.startswith("sqlite")
+    else {"connect_timeout": 5},
     pool_pre_ping=True,
 )
 if settings.database_url.startswith("sqlite"):

@@ -14,7 +14,7 @@ The implementation is a functional local MVP, not a production-complete marketpl
 - Admin can create categories and moderate listings/users/reports. Category renaming/deletion and complex permission customization are not included.
 - Local image uploads have signature/size checks; production needs full media decoding, scanning, storage policies and quotas.
 - Lists in private dashboards are not yet paginated. Public catalogue is paginated.
-- The migration and automated tests run on SQLite locally. PostgreSQL runtime behavior needs a PostgreSQL instance; do not infer it from SQLite passes.
+- Unit/concurrency tests use isolated SQLite databases. PostgreSQL 17 migrations and real HTTP workflows were additionally verified against the existing local `Velora` database; multi-process PostgreSQL stress testing is still not included.
 
 ## Executed verification
 
@@ -27,3 +27,15 @@ The implementation is a functional local MVP, not a production-complete marketpl
 - Dependency audit: npm reported zero vulnerabilities after compatible patches. Python constraints and npm lockfile capture the installed versions.
 
 The browser test leaves one synthetic QA business and one hidden service listing in the local development database. They cannot be discovered in the public catalogue. No real payment or third-party message was sent.
+
+## PostgreSQL integration — 27 October 2026
+
+- Found PostgreSQL 17.2 running on port 5432. The existing database is named **`Velora`**, with a capital V; lowercase `velora` does not exist.
+- Inspected the target database before migration: no public tables and no Alembic history. Applied the existing `001` migration, verified head and no schema drift, and ran the idempotent development seed. No database, table or existing record was deleted, renamed or reset. Fleet Masters was not modified.
+- Saved the URL-encoded connection only in ignored root `.env`, using a hidden password prompt. No credentials are embedded in code, frontend configuration, examples or logs.
+- Added a root `npm.cmd run dev` launcher to start the existing API and Vite processes together, verify their HTTP health/proxy and support alternate ports without terminating unrelated programs. Both remain bound to loopback.
+- Added a generic HTTP 503 database-outage response and a five-second database connection timeout. Backend suite: **10 tests passed**. Frontend suite: **9 tests passed**; build and TypeScript checks passed.
+- Ran `python -m app.smoke_check http://127.0.0.1:5173` against the PostgreSQL-backed running application. Registration, multiple roles, listing creation, service completion/review, private-record checks, insufficient produce stock, accurate totals, cancellation restoration, seller stock updates, rental estimates, overlap prevention, rental completion, notifications and logout all passed.
+- That opt-in smoke check leaves synthetic records in the development database and hides its three listings afterward. It does not reset any data or process payments.
+
+The earlier SQLite data file is preserved. New activity now uses PostgreSQL. Application servers must remain running for the browser URL to work; opening the browser alone does not start them.

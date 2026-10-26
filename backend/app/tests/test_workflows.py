@@ -432,3 +432,24 @@ def test_concurrent_rental_acceptance_reserves_one_slot(setup):
     with ThreadPoolExecutor(max_workers=2) as executor:
         statuses = list(executor.map(accept, requests))
     assert sorted(statuses) == [200, 409]
+
+
+def test_database_outage_returns_a_safe_service_unavailable_response(setup):
+    from sqlalchemy.exc import OperationalError
+
+    client, factory = setup
+    previous = app.dependency_overrides[get_db]
+
+    def unavailable():
+        raise OperationalError("private query", {}, RuntimeError("private connection details"))
+
+    app.dependency_overrides[get_db] = unavailable
+    try:
+        response = client.get("/api/health")
+        assert response.status_code == 503
+        assert response.json() == {
+            "detail": "The database is temporarily unavailable. Please try again shortly."
+        }
+        assert "private" not in response.text
+    finally:
+        app.dependency_overrides[get_db] = previous
